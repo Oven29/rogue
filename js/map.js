@@ -1,8 +1,4 @@
-const TILE_WALL = "tileW";
-const TILE_FLOOR = "tile";
-const HEIGHT = 24;
-const WIDTH = 40;
-
+import cst from './constants.js';
 
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -10,27 +6,27 @@ function getRandomInt(min, max) {
 
 function placeRandomObject(map, objectType) {
     while (true) {
-        const x = getRandomInt(0, WIDTH - 1);
-        const y = getRandomInt(0, HEIGHT - 1);
+        const x = getRandomInt(0, cst.MAP_WIDTH - 1);
+        const y = getRandomInt(0, cst.MAP_HEIGHT - 1);
         const tile = map[y][x];
-        if (tile.type === TILE_FLOOR && !tile.object) {
+        if (tile.type === cst.TILE_FLOOR && !tile.object) {
             tile.object = objectType;
             return { x, y };
         }
     }
 }
 
-function checkAllFloorReachable(map, floorType = TILE_FLOOR) {
-    const visited = Array.from({ length: HEIGHT }, () =>
-        Array.from({ length: WIDTH }, () => false)
+function checkAllFloorReachable(map, floorType = cst.TILE_FLOOR) {
+    const visited = Array.from({ length: cst.MAP_HEIGHT }, () =>
+        Array.from({ length: cst.MAP_WIDTH }, () => false)
     );
 
     let found = false;
     let startX = 0;
     let startY = 0;
 
-    outer: for (let y = 0; y < HEIGHT; y++) {
-        for (let x = 0; x < WIDTH; x++) {
+    outer: for (let y = 0; y < cst.MAP_HEIGHT; y++) {
+        for (let x = 0; x < cst.MAP_WIDTH; x++) {
             if (map[y][x].type === floorType) {
                 startX = x;
                 startY = y;
@@ -56,7 +52,7 @@ function checkAllFloorReachable(map, floorType = TILE_FLOOR) {
             const nx = x + dx, ny = y + dy;
             if (
                 nx >= 0 && ny >= 0 &&
-                nx < WIDTH && ny < HEIGHT &&
+                nx < cst.MAP_WIDTH && ny < cst.MAP_HEIGHT &&
                 !visited[ny][nx] &&
                 map[ny][nx].type === floorType
             ) {
@@ -66,8 +62,8 @@ function checkAllFloorReachable(map, floorType = TILE_FLOOR) {
         }
     }
 
-    for (let y = 0; y < HEIGHT; y++) {
-        for (let x = 0; x < WIDTH; x++) {
+    for (let y = 0; y < cst.MAP_HEIGHT; y++) {
+        for (let x = 0; x < cst.MAP_WIDTH; x++) {
             if (map[y][x].type === floorType && !visited[y][x]) {
                 return false; // Есть недостижимая клетка
             }
@@ -80,11 +76,11 @@ function checkAllFloorReachable(map, floorType = TILE_FLOOR) {
 export function generateMap() {
     console.log('Generating map...');
 
-    const map = Array.from({ length: HEIGHT }, () =>
-        Array.from({ length: WIDTH }, () => ({ type: TILE_WALL, object: null }))
+    const map = Array.from({ length: cst.MAP_HEIGHT }, () =>
+        Array.from({ length: cst.MAP_WIDTH }, () => ({ type: cst.TILE_WALL, object: null }))
     );
 
-    const isInside = (x, y) => x >= 0 && y >= 0 && x < WIDTH && y < HEIGHT;
+    const isInside = (x, y) => x >= 0 && y >= 0 && x < cst.MAP_WIDTH && y < cst.MAP_HEIGHT;
 
     // --- Создание комнат ---
     const rooms = [];
@@ -93,8 +89,8 @@ export function generateMap() {
     for (let i = 0; i < roomCount; i++) {
         const w = getRandomInt(3, 8);
         const h = getRandomInt(3, 8);
-        const x = getRandomInt(1, WIDTH - w - 1);
-        const y = getRandomInt(1, HEIGHT - h - 1);
+        const x = getRandomInt(1, cst.MAP_WIDTH - w - 1);
+        const y = getRandomInt(1, cst.MAP_HEIGHT - h - 1);
 
         const overlaps = rooms.some(r =>
             x < r.x + r.w &&
@@ -108,7 +104,7 @@ export function generateMap() {
 
         for (let dy = 0; dy < h; dy++) {
             for (let dx = 0; dx < w; dx++) {
-                map[y + dy][x + dx].type = TILE_FLOOR;
+                map[y + dy][x + dx].type = cst.TILE_FLOOR;
             }
         }
     }
@@ -118,43 +114,43 @@ export function generateMap() {
     const verticalCount = getRandomInt(3, 5);
 
     for (let i = 0; i < horizontalCount; i++) {
-        const y = getRandomInt(1, HEIGHT - 2);
-        const x1 = getRandomInt(1, WIDTH / 2);
-        const x2 = getRandomInt(WIDTH / 2, WIDTH - 2);
+        const y = getRandomInt(1, cst.MAP_HEIGHT - 2);
+        const x1 = getRandomInt(1, cst.MAP_WIDTH / 2);
+        const x2 = getRandomInt(cst.MAP_WIDTH / 2, cst.MAP_WIDTH - 2);
         for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
-            map[y][x].type = TILE_FLOOR;
+            map[y][x].type = cst.TILE_FLOOR;
         }
     }
 
     for (let i = 0; i < verticalCount; i++) {
-        const x = getRandomInt(1, WIDTH - 2);
-        const y1 = getRandomInt(1, HEIGHT / 2);
-        const y2 = getRandomInt(HEIGHT / 2, HEIGHT - 2);
+        const x = getRandomInt(1, cst.MAP_WIDTH - 2);
+        const y1 = getRandomInt(1, cst.MAP_HEIGHT / 2);
+        const y2 = getRandomInt(cst.MAP_HEIGHT / 2, cst.MAP_HEIGHT - 2);
         for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-            map[y][x].type = TILE_FLOOR;
+            map[y][x].type = cst.TILE_FLOOR;
         }
     }
 
     // --- Проверка доступности всех клеток ---
-    if (!checkAllFloorReachable(map, TILE_FLOOR)) {
-        return generateMap(WIDTH, HEIGHT); // повторить генерацию
+    if (!checkAllFloorReachable(map, cst.TILE_FLOOR)) {
+        return generateMap(cst.MAP_WIDTH, cst.MAP_HEIGHT); // повторить генерацию
     }
 
     // --- Размещение предметов ---
     for (let i = 0; i < 2; i++) {
-        placeRandomObject(map, "tileSW");
+        placeRandomObject(map, cst.TILE_SWORD);
     }
     for (let i = 0; i < 10; i++) {
-        placeRandomObject(map, "tileHP");
+        placeRandomObject(map, cst.TILE_POTION);
     }
 
     // --- Размещение героя ---
-    const hero = placeRandomObject(map, "tileP");
+    const hero = placeRandomObject(map, cst.TILE_HERO);
 
     // --- Размещение врагов ---
     const enemies = [];
     for (let i = 0; i < 10; i++) {
-        enemies.push(placeRandomObject(map, "tileE"));
+        enemies.push(placeRandomObject(map, cst.TILE_ENEMY));
     }
 
     return { map, hero, enemies };

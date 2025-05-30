@@ -18,8 +18,20 @@ export class BaseTile {
 }
 
 export class UnitTile extends BaseTile {
+    constructor(hp) {
+        this.hp = hp;
+    }    
+
     draw(x, y) {
         super.draw(x, y);
+    }
+
+    move(x, y) {
+
+    }
+
+    setHP() {
+
     }
 }
 
