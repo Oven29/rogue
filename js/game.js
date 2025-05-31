@@ -45,6 +45,9 @@ export class Game {
 
                 if (this.isNear(enemy.x, enemy.y, this.hero.x, this.hero.y)) {
                     this.hero.takeDamage(cst.ENEMY_ATACK);
+                    if (this.hero.hp <= 0) {
+                        this.endGame('Поражение');
+                    }
                 };
 
                 const moves = [];
@@ -75,6 +78,9 @@ export class Game {
                         enemy.takeDamage(this.hero.damage);
                     }
                 })
+                if (this.enemies.every(enemy => enemy.hp <= 0)) {
+                    this.endGame('ПОБЕДА!');
+                }
             }
 
             const item = this.items.find(i => i.x === this.hero.x && i.y === this.hero.y);
@@ -89,7 +95,14 @@ export class Game {
                 item.remove();
             }
         });
+    }
 
+    endGame(result) {
+        const $modal = $('<div class="modal"></div>');
+        const $modalContent = $('<div class="modal-content"></div>');
+        $modalContent.text(result);
+        $modal.append($modalContent);
+        $('body').append($modal);
     }
 
     init() {

@@ -5,7 +5,7 @@ export default {
     ENEMY_HP: 100,
     HERO_HP: 100,
     ENEMY_ATACK: 10,
-    HERO_ATACK: 15,
+    HERO_ATACK: 10,
     SWORD_BONUS: 10,
     POTION_BONUS: 10,
 
