@@ -12,7 +12,139 @@
 		rel="stylesheet">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 	<!-- <script type="text/javascript" src="/shared/3rdparty/jquery/jquery.js" language="javascript1.1"></script> -->
-	<link rel="stylesheet" href="index.css">
+	<style>
+		:root {
+			--tile-width: 25px;
+			--tile-height: 25px;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body,
+		html {
+			height: 100%;
+		}
+
+		body {
+			background-color: #000000;
+			color: #ffffff;
+		}
+
+		h1 {
+			font-family: "Playfair Display";
+			font-size: 30px;
+			padding: 10px 0px;
+			margin: 0px;
+		}
+
+		.field-box {
+			border: 2px solid #d0d0d0;
+			float: left;
+		}
+
+		.field {
+			position: relative;
+			width: calc(40 * var(--tile-width));
+			height: calc(24 * var(--tile-height));
+		}
+
+		.field .tile {
+			position: absolute;
+			width: var(--tile-width);
+			height: var(--tile-height);
+			background-size: 100%;
+			background-image: url(images/tile-.png);
+			z-index: 5;
+		}
+
+		.field .tileW {
+			background-image: url(images/tile-W.png);
+		}
+
+		/* Animation */
+		.field .tileE,
+		.field .tileP {
+			transition: left 0.3s ease, top 0.3s ease;
+			will-change: left, top;
+		}
+
+		.field .hit {
+			filter: sepia(1) saturate(10) hue-rotate(-20deg);
+		}
+
+		.field .tileE {
+			background-image: url(images/tile-E.png);
+			z-index: 10;
+		}
+
+		.field .tileP {
+			background-image: url(images/tile-P.png);
+			z-index: 10;
+		}
+
+		.field .tileHP {
+			background-image: url(images/tile-HP.png);
+			z-index: 9;
+		}
+
+		.field .tileSW {
+			background-image: url(images/tile-SW.png);
+			z-index: 9;
+		}
+
+		.field .tile .health {
+			background-color: #ff0000;
+			z-index: 11;
+			position: absolute;
+			left: 0px;
+			top: 0px;
+			height: 3px;
+		}
+
+		.field .tileP .health {
+			background-color: #00ff00;
+			z-index: 11;
+			position: absolute;
+			left: 0px;
+			top: 0px;
+			height: 3px;
+		}
+
+		.inventory-box {
+			border: 2px solid #d0d0d0;
+			float: left;
+		}
+
+		.inventory {
+			position: relative;
+			width: 800px;
+			height: 32px;
+		}
+
+		.cl {
+			clear: both;
+			display: block;
+		}
+
+		.modal {
+			position: fixed;
+			inset: 0;
+			background-color: rgba(0, 0, 0, 0.8);
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			z-index: 50;
+		}
+
+		.modal-content {
+			font-size: 2rem;
+			font-weight: bold;
+			text-align: center;
+			box-shadow: 0 0 20px black;
+		}
+	</style>
 </head>
 
 <body>
@@ -28,7 +160,379 @@
 		<div class="inventory"></div>
 	</div>
 
-	<script src="index.js" type="module"></script>
+	<script>
+		const cst = {
+			MAP_HEIGHT: 24,
+			MAP_WIDTH: 40,
+
+			ENEMY_HP: 100,
+			HERO_HP: 100,
+			ENEMY_ATACK: 10,
+			HERO_ATACK: 10,
+			SWORD_BONUS: 10,
+			POTION_BONUS: 10,
+
+			TILE_FLOOR: 'tile',
+			TILE_WALL: 'tileW',
+			TILE_ENEMY: 'tileE',
+			TILE_HERO: 'tileP',
+			TILE_SWORD: 'tileSW',
+			TILE_POTION: 'tileHP',
+
+			ENEMY_INTERVAL: 1000,
+		};
+
+
+		class BaseTile {
+			constructor(className) {
+				this.className = className;
+				this.$tile = $(`<div class="tile ${this.className !== 'tile' ? this.className : ''}"></div>`);
+			}
+
+			draw(x, y) {
+				this.x = x;
+				this.y = y;
+				this.$tile.attr('style', `left: calc(${this.x} * var(--tile-width)); top: calc(${this.y} * var(--tile-height));`);
+				$('.field').append(this.$tile);
+				return this;
+			}
+
+			remove() {
+				this.$tile.remove();
+			}
+		}
+
+		class UnitTile extends BaseTile {
+			constructor(className, hp) {
+				super(className);
+				this.hp = hp;
+				this.$hp = $('<div class="health" style="width: 100%"></div>');
+			}
+
+			draw(x, y) {
+				this.$tile.append(this.$hp);
+				super.draw(x, y);
+				return this;
+			}
+
+			moveTo(x, y) {
+				this.x = x;
+				this.y = y;
+				this.$tile.attr('style', `left: calc(${this.x} * var(--tile-width)); top: calc(${this.y} * var(--tile-height));`);
+			}
+
+			move(dir) {
+				this.moveTo(this.x + dir[0], this.y + dir[1]);
+			}
+
+			setHP(hp) {
+				this.hp = hp;
+				this.$hp.css('width', `${this.hp / cst.HERO_HP * 100}%`);
+			}
+
+			takeDamage(damage) {
+				this.setHP(this.hp - damage);
+				if (this.hp <= 0) {
+					this.remove();
+					return true;
+				}
+				this.$tile.addClass('hit');
+				setTimeout(() => this.$tile.removeClass('hit'), 100);
+				return false;
+			}
+		}
+
+		class HeroTile extends UnitTile {
+			constructor() {
+				super(cst.TILE_HERO, cst.HERO_HP);
+				this.damage = cst.HERO_ATACK;
+			}
+
+			setDamage(damage) {
+				this.damage = damage;
+			}
+		}
+
+		class EnemyTile extends UnitTile {
+			constructor() {
+				super(cst.TILE_ENEMY, cst.ENEMY_HP);
+			}
+		}
+
+
+		function getRandomInt(min, max) {
+			return Math.floor(Math.random() * (max - min + 1)) + min;
+		}
+
+		function placeRandomObject(map, objectType) {
+			while (true) {
+				const x = getRandomInt(0, cst.MAP_WIDTH - 1);
+				const y = getRandomInt(0, cst.MAP_HEIGHT - 1);
+				const tile = map[y][x];
+				if (tile.type === cst.TILE_FLOOR && !tile.object) {
+					tile.object = objectType;
+					return { x, y };
+				}
+			}
+		}
+
+		function checkAllFloorReachable(map, floorType = cst.TILE_FLOOR) {
+			const visited = Array.from({ length: cst.MAP_HEIGHT }, () =>
+				Array.from({ length: cst.MAP_WIDTH }, () => false)
+			);
+
+			let found = false;
+			let startX = 0;
+			let startY = 0;
+
+			outer: for (let y = 0; y < cst.MAP_HEIGHT; y++) {
+				for (let x = 0; x < cst.MAP_WIDTH; x++) {
+					if (map[y][x].type === floorType) {
+						startX = x;
+						startY = y;
+						found = true;
+						break outer;
+					}
+				}
+			}
+
+			if (!found) return false;
+
+			const queue = [[startX, startY]];
+			visited[startY][startX] = true;
+
+			const dirs = [
+				[1, 0], [-1, 0],
+				[0, 1], [0, -1],
+			];
+
+			while (queue.length) {
+				const [x, y] = queue.shift();
+				for (const [dx, dy] of dirs) {
+					const nx = x + dx, ny = y + dy;
+					if (
+						nx >= 0 && ny >= 0 &&
+						nx < cst.MAP_WIDTH && ny < cst.MAP_HEIGHT &&
+						!visited[ny][nx] &&
+						map[ny][nx].type === floorType
+					) {
+						visited[ny][nx] = true;
+						queue.push([nx, ny]);
+					}
+				}
+			}
+
+			for (let y = 0; y < cst.MAP_HEIGHT; y++) {
+				for (let x = 0; x < cst.MAP_WIDTH; x++) {
+					if (map[y][x].type === floorType && !visited[y][x]) {
+						return false; // Есть недостижимая клетка
+					}
+				}
+			}
+
+			return true;
+		}
+
+		function generateMap() {
+			console.log('Generating map...');
+
+			const map = Array.from({ length: cst.MAP_HEIGHT }, () =>
+				Array.from({ length: cst.MAP_WIDTH }, () => ({ type: cst.TILE_WALL, object: null }))
+			);
+
+			const isInside = (x, y) => x >= 0 && y >= 0 && x < cst.MAP_WIDTH && y < cst.MAP_HEIGHT;
+
+			// --- Создание комнат ---
+			const rooms = [];
+			const roomCount = getRandomInt(5, 10);
+
+			for (let i = 0; i < roomCount; i++) {
+				const w = getRandomInt(3, 8);
+				const h = getRandomInt(3, 8);
+				const x = getRandomInt(1, cst.MAP_WIDTH - w - 1);
+				const y = getRandomInt(1, cst.MAP_HEIGHT - h - 1);
+
+				const overlaps = rooms.some(r =>
+					x < r.x + r.w &&
+					x + w > r.x &&
+					y < r.y + r.h &&
+					y + h > r.y
+				);
+				if (overlaps) continue;
+
+				rooms.push({ x, y, w, h });
+
+				for (let dy = 0; dy < h; dy++) {
+					for (let dx = 0; dx < w; dx++) {
+						map[y + dy][x + dx].type = cst.TILE_FLOOR;
+					}
+				}
+			}
+
+			// --- Создание коридоров ---
+			const horizontalCount = getRandomInt(3, 5);
+			const verticalCount = getRandomInt(3, 5);
+
+			for (let i = 0; i < horizontalCount; i++) {
+				const y = getRandomInt(1, cst.MAP_HEIGHT - 2);
+				const x1 = getRandomInt(1, cst.MAP_WIDTH / 2);
+				const x2 = getRandomInt(cst.MAP_WIDTH / 2, cst.MAP_WIDTH - 2);
+				for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+					map[y][x].type = cst.TILE_FLOOR;
+				}
+			}
+
+			for (let i = 0; i < verticalCount; i++) {
+				const x = getRandomInt(1, cst.MAP_WIDTH - 2);
+				const y1 = getRandomInt(1, cst.MAP_HEIGHT / 2);
+				const y2 = getRandomInt(cst.MAP_HEIGHT / 2, cst.MAP_HEIGHT - 2);
+				for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
+					map[y][x].type = cst.TILE_FLOOR;
+				}
+			}
+
+			// --- Проверка доступности всех клеток ---
+			if (!checkAllFloorReachable(map, cst.TILE_FLOOR)) {
+				return generateMap(cst.MAP_WIDTH, cst.MAP_HEIGHT); // повторить генерацию
+			}
+
+			// --- Размещение предметов ---
+			for (let i = 0; i < 2; i++) {
+				placeRandomObject(map, cst.TILE_SWORD);
+			}
+			for (let i = 0; i < 10; i++) {
+				placeRandomObject(map, cst.TILE_POTION);
+			}
+
+			// --- Размещение героя ---
+			const hero = placeRandomObject(map, cst.TILE_HERO);
+
+			// --- Размещение врагов ---
+			const enemies = [];
+			for (let i = 0; i < 10; i++) {
+				enemies.push(placeRandomObject(map, cst.TILE_ENEMY));
+			}
+
+			return { map, hero, enemies };
+		}
+
+
+		const RIGTH = [1, 0];
+		const LEFT = [-1, 0];
+		const UP = [0, -1];
+		const DOWN = [0, 1];
+
+		class Game {
+			drawMap() {
+				const { map, hero, enemies } = generateMap();
+				this.map = map;
+				this.enemies = enemies.map(({ x, y }) => (
+					new EnemyTile().draw(x, y)
+				));
+				this.hero = new HeroTile().draw(hero.x, hero.y);
+				this.items = [];
+
+				for (let i = 0; i < this.map.length; i++) {
+					for (let j = 0; j < this.map[i].length; j++) {
+						const tile = this.map[i][j];
+						new BaseTile(tile.type).draw(j, i);
+						if ([cst.TILE_POTION, cst.TILE_SWORD].includes(tile.object)) {
+							this.items.push(new BaseTile(tile.object).draw(j, i));
+						}
+					}
+				}
+			}
+
+			checkMove(x, y) {
+				return this.map[y][x].type === cst.TILE_FLOOR &&
+					!this.enemies.some(e => e.x === x && e.y === y && e.hp > 0) &&
+					!(this.hero.x === x && this.hero.y === y);
+			}
+
+			isNear(x1, y1, x2, y2) {
+				return (Math.abs(x1 - x2) <= 1 && y1 === y2) || (Math.abs(y1 - y2) <= 1 && x1 === x2);
+			}
+
+			addMovementToEnemies() {
+				setInterval(() => {
+					for (const enemy of this.enemies) {
+						if (enemy.hp <= 0) continue;
+
+						if (this.isNear(enemy.x, enemy.y, this.hero.x, this.hero.y)) {
+							this.hero.takeDamage(cst.ENEMY_ATACK);
+							if (this.hero.hp <= 0) {
+								this.endGame('Поражение');
+							}
+						};
+
+						const moves = [];
+						moves.push([0, 0]);
+						if (this.checkMove(enemy.x + RIGTH[0], enemy.y + RIGTH[1])) moves.push(RIGTH);
+						if (this.checkMove(enemy.x + LEFT[0], enemy.y + LEFT[1])) moves.push(LEFT);
+						if (this.checkMove(enemy.x + UP[0], enemy.y + UP[1])) moves.push(UP);
+						if (this.checkMove(enemy.x + DOWN[0], enemy.y + DOWN[1])) moves.push(DOWN);
+						const move = moves[getRandomInt(0, moves.length - 1)];
+						enemy.move(move);
+					}
+				}, cst.ENEMY_INTERVAL);
+			}
+
+			addKeyboardEvents() {
+				$(document).on('keydown', (e) => {
+					if (e.key === 'w' && this.checkMove(this.hero.x + UP[0], this.hero.y + UP[1])) {
+						this.hero.move(UP);
+					} else if (e.key === 'a' && this.checkMove(this.hero.x + LEFT[0], this.hero.y + LEFT[1])) {
+						this.hero.move(LEFT);
+					} else if (e.key === 's' && this.checkMove(this.hero.x + DOWN[0], this.hero.y + DOWN[1])) {
+						this.hero.move(DOWN);
+					} else if (e.key === 'd' && this.checkMove(this.hero.x + RIGTH[0], this.hero.y + RIGTH[1])) {
+						this.hero.move(RIGTH);
+					} else if (e.key === ' ') {
+						this.enemies.forEach(enemy => {
+							if (this.isNear(enemy.x, enemy.y, this.hero.x, this.hero.y)) {
+								enemy.takeDamage(this.hero.damage);
+							}
+						})
+						if (this.enemies.every(enemy => enemy.hp <= 0)) {
+							this.endGame('ПОБЕДА!');
+						}
+					}
+
+					const item = this.items.find(i => i.x === this.hero.x && i.y === this.hero.y);
+					if (item) {
+						this.items.splice(this.items.indexOf(item), 1);
+						console.log('Getting', item.className);
+						if (item.className === cst.TILE_SWORD) {
+							this.hero.setDamage(this.hero.damage + cst.SWORD_BONUS);
+						} else if (item.className === cst.TILE_POTION) {
+							this.hero.setHP(Math.min(this.hero.hp + cst.POTION_BONUS, cst.HERO_HP));
+						}
+						item.remove();
+					}
+				});
+			}
+
+			endGame(result) {
+				const $modal = $('<div class="modal"></div>');
+				const $modalContent = $('<div class="modal-content"></div>');
+				$modalContent.text(result);
+				$modal.append($modalContent);
+				$('body').append($modal);
+			}
+
+			init() {
+				console.log('Initiing game...');
+				$('.field').empty();
+
+				this.drawMap();
+				this.addMovementToEnemies();
+				this.addKeyboardEvents();
+			}
+		}
+
+		const game = new Game();
+		game.init();
+	</script>
 </body>
 
 </html>
