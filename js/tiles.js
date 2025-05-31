@@ -29,14 +29,17 @@ export class UnitTile extends BaseTile {
     draw(x, y) {
         this.$tile.append(this.$hp);
         super.draw(x, y);
-        console.log('Draw', this.className);
         return this;
     }
 
-    move(x, y) {
+    moveTo(x, y) {
         this.x = x;
         this.y = y;
         this.$tile.attr('style', `left: calc(${this.x} * var(--tile-width)); top: calc(${this.y} * var(--tile-height));`);
+    }
+
+    move(dir) {
+        this.moveTo(this.x + dir[0], this.y + dir[1]);
     }
 
     setHP(hp) {
@@ -50,6 +53,8 @@ export class UnitTile extends BaseTile {
             this.remove();
             return true;
         }
+        this.$tile.addClass('hit');
+        setTimeout(() => this.$tile.removeClass('hit'), 100);
         return false;
     }
 }
@@ -57,6 +62,11 @@ export class UnitTile extends BaseTile {
 export class HeroTile extends UnitTile {
     constructor() {
         super(cst.TILE_HERO, cst.HERO_HP);
+        this.damage = cst.HERO_ATACK;
+    }
+
+    setDamage(damage) {
+        this.damage = damage;
     }
 }
 
